@@ -43,6 +43,8 @@ INSTALLED_APPS = [
     'students',
     
     'channels',
+    'rest_framework',
+    'drf_yasg', # Swagger
 ]
 
 ASGI_APPLICATION = 'chatbot_project.asgi.application'
