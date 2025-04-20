@@ -40,3 +40,26 @@ The server will be accessible at `http://localhost:5000`.
 
 This project is licensed under the MIT License.
 
+
+
+## Troubleshooting
+
+If you encounter issues with Django environment variables, ensure that the `DJANGO_SETTINGS_MODULE` is correctly set. You can set it in the terminal using the following command:
+
+```bash
+export DJANGO_SETTINGS_MODULE='chatbot_project.settings'
+```
+
+This will allow Django to locate and use the appropriate settings module.
+
+
+
+## Populating the Database
+
+To insert fake data into the database for testing purposes, you can use the following command:
+
+```bash
+python manage.py insert_fake_data
+```
+
+> **Note:** Ensure that the `insert_fake_data` management command is implemented in your Django project to generate and populate the database with fake data.
