@@ -8,6 +8,9 @@ urlpatterns = [
     path('students/', views.StudentListCreateView.as_view(), name='student-list-create'),
     path('students/<int:pk>/', views.StudentDetailView.as_view(), name='student-detail'),
 
+    # student profile API URLs
+    path('student-profiles/<int:student_id>/', views.StudentProfileView.as_view(), name='student-profile-list-create'),
+
     # Course API URLs
     path('courses/', views.CourseListCreateView.as_view(), name='course-list-create'),
     path('courses/<int:pk>/', views.CourseDetailView.as_view(), name='course-detail'),

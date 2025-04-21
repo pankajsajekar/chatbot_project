@@ -12,14 +12,14 @@ class Command(BaseCommand):
 
         # Create fake courses
         courses = []
-        for _ in range(10):  # Create 10 courses
+        for _ in range(5):  # Create 10 courses
             course = Course.objects.create(
-                name=fake.bs(),
+                name=fake.domain_name(),
                 description=fake.text(),
-                department=fake.word(),
+                department=fake.domain_name(),
                 credit_hours=fake.random_int(min=3, max=6),
                 instructor_name=fake.name(),
-                prerequisites=fake.text(),
+                prerequisites=fake.sentence(),
                 schedule=fake.word(),
                 level=fake.random_element(elements=('Undergraduate', 'Graduate')),
                 syllabus_link=fake.url(),
@@ -33,13 +33,13 @@ class Command(BaseCommand):
         students = []
         for _ in range(10):  # Create 50 students
             student = Student.objects.create(
-                student_id=fake.uuid4(),
+                student_id=fake.random_int(min=1000, max=9999),
                 name=fake.name(),
                 age=fake.random_int(min=18, max=30),
                 email=fake.email(),
                 phone_number=fake.phone_number(),
                 address=fake.address(),
-                department=fake.word(),
+                department=fake.domain_name(),
                 enrollment_year=fake.year(),
                 graduation_year=fake.year(),
                 gender=fake.random_element(elements=('Male', 'Female', 'Other')),
@@ -51,13 +51,13 @@ class Command(BaseCommand):
                 emergency_contact_name=fake.name(),
                 emergency_contact_phone=fake.phone_number(),
                 scholarship_awarded=fake.boolean(),
-                scholarship_name=fake.word(),
+                scholarship_name=fake.domain_name(),
                 financial_aid_status=fake.random_element(elements=('None', 'Full', 'Partial')),
                 status=fake.random_element(elements=('Active', 'Graduated', 'On Leave')),
                 has_internship=fake.boolean(),
                 internship_details=fake.text(),
                 extracurricular_activities=fake.text(),
-                gpa=fake.random_int(min=0, max=40) / 10.0,  # Ensure GPA is a valid decimal (e.g., 3.5)
+                gpa=fake.random_int(min=10, max=40) / 10.0,  # Ensure GPA is a valid decimal (e.g., 3.5)
                 academic_status=fake.random_element(elements=('Good Standing', 'Probation')),
                 profile_picture=fake.file_name(extension='jpg')
             )

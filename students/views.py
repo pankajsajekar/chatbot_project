@@ -2,6 +2,7 @@
 
 from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.decorators import api_view
 from rest_framework import generics
 from .models import Student, Course, Grade, Attendance, Performance, Internship
@@ -15,6 +16,27 @@ class StudentListCreateView(generics.ListCreateAPIView):
 class StudentDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
+
+class StudentProfileView(APIView):
+    def get(self, request, student_id):
+        try:
+            student = Student.objects.get(id=student_id)
+        except Student.DoesNotExist:
+            return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        grades = Grade.objects.filter(student=student)
+        attendance = Attendance.objects.filter(student=student)
+        performance = Performance.objects.filter(student=student)
+        internships = Internship.objects.filter(student=student)
+
+        data = {
+            "student": StudentSerializer(student).data,
+            "grades": GradeSerializer(grades, many=True).data,
+            "attendance": AttendanceSerializer(attendance, many=True).data,
+            "performance": PerformanceSerializer(performance, many=True).data,
+            "internships": InternshipSerializer(internships, many=True).data,
+        }
+        return Response(data, status=status.HTTP_200_OK)
 
 # API view for Course model (CRUD operations)
 class CourseListCreateView(generics.ListCreateAPIView):
