@@ -26,8 +26,18 @@ SECRET_KEY = 'django-insecure-1_wqs%jy6#@86^0fm)g0#p!#tqpju+&8zq7qv)ep#!%-+0m4th
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "127.0.0.1", "*",
+]
 
+# CORS configuration
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+]
+
+CORS_ALLOW_ALL_ORIGINS = True
+
+# MIDDLEWARE.insert(0, 'corsheaders.middleware.CorsMiddleware')
 
 # Application definition
 
@@ -45,6 +55,7 @@ INSTALLED_APPS = [
     'channels',
     'rest_framework',
     'drf_yasg', # Swagger
+    'corsheaders'
 ]
 
 ASGI_APPLICATION = 'chatbot_project.asgi.application'
@@ -70,6 +81,7 @@ CHANNEL_LAYERS = {
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
