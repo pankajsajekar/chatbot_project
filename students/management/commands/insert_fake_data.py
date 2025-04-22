@@ -3,20 +3,34 @@
 from django.core.management.base import BaseCommand
 from faker import Faker
 from students.models import Student, Course, Grade, Attendance, Performance, Internship
+from argparse import ArgumentParser
 
 class Command(BaseCommand):
     help = 'Insert fake data into the database'
+    
+    def add_arguments(self, parser):
+        parser.add_argument('--students', type=int, default=10, help='Number of students to create')
+        parser.add_argument('--courses', type=int, default=5, help='Number of courses to create')
 
-    def handle(self, *args, **kwargs):
-        fake = Faker()
+
+    def handle(self, *args, **options):
+        fake = Faker('en_IN')
+        
+        num_students = options['students']
+        num_courses = options['courses']
+        
+        self.stdout.write(self.style.SUCCESS(f'Creating {num_students} students and {num_courses} courses...'))
+            
+        departments = [ 'CSE', 'ECE', 'ME', 'CE', 'EE', 'IT', 'BBA', 'MBA']
+        courses_name = [ 'Data Structures', 'Algorithms', 'Database Management Systems', 'Operating Systems', 'Computer Networks', 'Software Engineering', 'Web Development', 'Machine Learning', 'Artificial Intelligence', 'Cloud Computing']
 
         # Create fake courses
         courses = []
-        for _ in range(5):  # Create 10 courses
+        for _ in range(num_courses):
             course = Course.objects.create(
-                name=fake.domain_name(),
+                name=fake.random_element(elements=courses_name),
                 description=fake.text(),
-                department=fake.domain_name(),
+                department=fake.random_element(elements=departments),
                 credit_hours=fake.random_int(min=3, max=6),
                 instructor_name=fake.name(),
                 prerequisites=fake.sentence(),
@@ -31,7 +45,7 @@ class Command(BaseCommand):
         
         # Create fake students
         students = []
-        for _ in range(10):  # Create 50 students
+        for _ in range(num_students):
             student = Student.objects.create(
                 student_id=fake.random_int(min=1000, max=9999),
                 name=fake.name(),
@@ -39,7 +53,7 @@ class Command(BaseCommand):
                 email=fake.email(),
                 phone_number=fake.phone_number(),
                 address=fake.address(),
-                department=fake.domain_name(),
+                department=fake.random_element(elements=departments),
                 enrollment_year=fake.year(),
                 graduation_year=fake.year(),
                 gender=fake.random_element(elements=('Male', 'Female', 'Other')),
@@ -51,7 +65,7 @@ class Command(BaseCommand):
                 emergency_contact_name=fake.name(),
                 emergency_contact_phone=fake.phone_number(),
                 scholarship_awarded=fake.boolean(),
-                scholarship_name=fake.domain_name(),
+                scholarship_name=fake.random_element(elements=departments),
                 financial_aid_status=fake.random_element(elements=('None', 'Full', 'Partial')),
                 status=fake.random_element(elements=('Active', 'Graduated', 'On Leave')),
                 has_internship=fake.boolean(),
