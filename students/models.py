@@ -20,9 +20,19 @@ class SoftDeleteMixin(models.Model):
     class Meta:
         abstract = True
 
+
+from django.utils import timezone
+
+def generate_course_code(prefix=''):
+    """Generate a unique with an optional prefix."""
+    timestamp = str(int(timezone.now().timestamp()))
+    return f"{prefix}{timestamp[:6]}"
+
+
 # Define the Course model with additional fields
 class Course(TimestampMixin, SoftDeleteMixin, models.Model):
     name = models.CharField(max_length=255)
+    course_code = models.CharField(max_length=20, null=True, blank=True)
     description = models.TextField(null=True, blank=True)
     department = models.CharField(max_length=255, null=True, blank=True)
     credit_hours = models.IntegerField(null=True, blank=True)
@@ -37,6 +47,12 @@ class Course(TimestampMixin, SoftDeleteMixin, models.Model):
 
     def __str__(self):
         return self.name
+    
+    def save(self, *args, **kwargs):
+        if not self.course_code:
+            self.course_code = generate_course_code(prefix=self.name[:4].upper())
+        super().save(*args, **kwargs)
+            
 
 
 # Define the Student model with additional fields
