@@ -4,6 +4,9 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    # dashboard API URLs
+    path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
+
     # Student API URLs
     path('students/', views.StudentListCreateView.as_view(), name='student-list-create'),
     path('students/<int:pk>/', views.StudentDetailView.as_view(), name='student-detail'),

@@ -8,6 +8,21 @@ from rest_framework import generics
 from .models import Student, Course, Grade, Attendance, Performance, Internship
 from .serializers import StudentSerializer, CourseSerializer, GradeSerializer, AttendanceSerializer, PerformanceSerializer, InternshipSerializer
 
+
+# API view for Dashboard
+class DashboardView(APIView):
+    def get(self, request):
+        # Example data for the dashboard
+        data = {
+            "total_students": Student.objects.count(),
+            "total_courses": Course.objects.count(),
+            "total_grades": Grade.objects.count(),
+            "total_attendance": Attendance.objects.count(),
+            "total_performance": Performance.objects.count(),
+            "total_internships": Internship.objects.count(),
+        }
+        return Response(data, status=status.HTTP_200_OK)
+
 # API view for Student model (CRUD operations)
 class StudentListCreateView(generics.ListCreateAPIView):
     queryset = Student.objects.all()
