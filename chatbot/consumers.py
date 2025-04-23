@@ -36,28 +36,28 @@ def get_student_details_sync(student_name):
             return {"error": "Student not found."}
         
         # Fetch attendance data
-        # attendance_records = Attendance.objects.filter(student=student)
-        # attendance_data = [
-        #     {
-        #         "course": record.course.name,
-        #         "date": record.date.strftime("%Y-%m-%d"),
-        #         "status": record.status
-        #     }
-        #     for record in attendance_records
-        # ]
+        attendance_records = Attendance.objects.filter(student=student)
+        attendance_data = [
+            {
+                "course": record.course.name,
+                "date": record.date.strftime("%Y-%m-%d"),
+                "status": record.status
+            }
+            for record in attendance_records
+        ]
         
         # Fetch grade data
-        # grade_records = Grade.objects.filter(student=student)
-        # grade_data = [
-        #     {
-        #         "course": record.course.name,
-        #         "marks_obtained": record.marks_obtained,
-        #         "total_marks": record.total_marks,
-        #         "exam_type": record.exam_type,
-        #         "semester": record.semester
-        #     }
-        #     for record in grade_records
-        # ]
+        grade_records = Grade.objects.filter(student=student)
+        grade_data = [
+            {
+                "course": record.course.name,
+                "marks_obtained": record.marks_obtained,
+                "total_marks": record.total_marks,
+                "exam_type": record.exam_type,
+                "semester": record.semester
+            }
+            for record in grade_records
+        ]
         
         # Compile all student details
         student_details = {
@@ -70,8 +70,8 @@ def get_student_details_sync(student_name):
             "status": student.status,
             "enrollment_year": student.enrollment_year,
             "graduation_year": student.graduation_year,
-            # "attendance": attendance_data,
-            # "grades": grade_data
+            "attendance": attendance_data,
+            "grades": grade_data
         }
         
         return student_details
@@ -156,7 +156,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def get_ai_response(self, user_message):
         
         base_prompt = '''
-        You are an agent designed to respond to user queries about student details. When a user asks about a student, such as "What is the attendance of this student?" or "What is the GPA of this student?", you will interact with the system to retrieve detailed information about the student based on their name. The data you will fetch includes attendance, GPA, scholarship status, internship details, and more. Your task is to process the user’s query, retrieve the relevant data from the database, and present the information in a clear and informative manner.
+        You are an agent designed to respond to user queries about student details. When a user asks about a student, such as "What is the attendance of this student?" or "What is the GPA of this student?", 
+        you will interact with the system to retrieve detailed information about the student based on their name. 
+        The data you will fetch includes attendance, GPA, scholarship status, internship details, and more. 
+        Your task is to process the user’s query, retrieve the relevant data from the database, and present the information in a clear and informative manner.
 
             Instruction:
 

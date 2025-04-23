@@ -91,7 +91,8 @@ class Command(BaseCommand):
                     total_marks=100,  # Total marks should be a valid number
                     exam_type=fake.random_element(elements=('Mid-Term', 'Final', 'Continuous')),
                     semester=fake.random_element(elements=('Fall', 'Spring', 'Summer')),
-                    academic_year=fake.year()
+                    academic_year=fake.year(),
+                    remarks=fake.sentence(),
                 )
 
         # Assign attendance to students
