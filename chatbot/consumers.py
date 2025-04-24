@@ -16,6 +16,7 @@ from typing import Annotated
 from pydantic import BaseModel, Field
 from asgiref.sync import sync_to_async
 import asyncio
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 
 MEMORY_KEY = "chat_history"
 
@@ -24,16 +25,99 @@ openai.api_key = settings.OPENAI_API_KEY
 
 llm = ChatOpenAI(model="gpt-4.1", temperature=0.3, api_key=settings.OPENAI_API_KEY)
 
-def get_student_details_sync(student_name):
-    try:
-        from students.models import Student, Attendance, Grade 
 
+def get_student_records(student_name):
+    from students.models import Student
+    try:
         student = Student.objects.filter(name__icontains=student_name).first()
-        
-        print(f"Student found: {student}")
-        
         if not student:
             return {"error": "Student not found."}
+        return student
+    except Exception as e:
+        print(f"Error fetching student details: {e}")
+        return {"error": "An error occurred while fetching student details."}
+
+def count_total_records(items: str):
+    """
+    Count the total number of records in the specified model.
+    :param items: The name of the model to count records for.
+    """
+    from students.models import Student, Attendance, Grade, Course, Internship, Performance
+    try:
+        if items == "students":
+            total_count = Student.objects.count()
+        elif items == "courses":
+            total_count = Course.objects.count()
+        elif items == "internships":
+            total_count = Internship.objects.count()
+        elif items == "performances":
+            total_count = Performance.objects.count()
+        elif items == "attendance":
+            total_count = Attendance.objects.count()
+        elif items == "grades":
+            total_count = Grade.objects.count()
+        else:
+            return Student.objects.count()
+        return total_count
+    except Exception as e:
+        print(f"Error counting students: {e}")
+        return {"error": "An error occurred while counting students."}
+
+def failed_students():
+    from students.models import Student
+    try:
+        failed_students = Student.objects.filter(is_deleted=False).select_related('student_performance').filter(student_performance__status='Failed')
+        if not failed_students:
+            return {"message": "No students have failed."}
+        data = [
+            {
+                "name": student.name,
+                "student_id": student.student_id,
+                "department": student.department,
+                "email": student.email,
+                "phone_number": student.phone_number,
+                "gpa": student.gpa,
+                "status": student.status,
+                "enrollment_year": student.enrollment_year,
+                "graduation_year": student.graduation_year,
+            }
+            for student in failed_students
+        ]
+        return data
+    except Exception as e:
+        print(f"Error fetching failed students: {e}")
+        return {"error": "An error occurred while fetching failed students."}
+    
+
+def topper_students_list():
+    from students.models import Student
+    try:
+        top_students = Student.objects.filter(is_deleted=False).order_by('-gpa')[:10]
+        if not top_students:
+            return {"message": "No students found."}
+        return [
+            {
+                "name": student.name,
+                "student_id": student.student_id,
+                "department": student.department,
+                "email": student.email,
+                "phone_number": student.phone_number,
+                "gpa": student.gpa,
+                "status": student.status,
+                "enrollment_year": student.enrollment_year,
+                "graduation_year": student.graduation_year,
+            }
+            for student in top_students
+        ]
+    except Exception as e:
+        print(f"Error fetching top students: {e}")
+        return {"error": "An error occurred while fetching top students."}
+
+
+def get_student_details_sync(student_name):
+    from students.models import Student, Attendance, Grade, Course, Internship, Performance
+    try:
+        student = get_student_records(student_name)
         
         # Fetch attendance data
         attendance_records = Attendance.objects.filter(student=student)

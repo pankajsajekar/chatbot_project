@@ -98,8 +98,8 @@ class Student(TimestampMixin, SoftDeleteMixin, models.Model):
 
 
 class Grade(TimestampMixin, SoftDeleteMixin, models.Model):
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
-    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='student_grades')
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='course_grades')
     grade = models.CharField(max_length=2, null=True, blank=True)
     marks_obtained = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     total_marks = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
@@ -119,8 +119,8 @@ class Grade(TimestampMixin, SoftDeleteMixin, models.Model):
 
 
 class Attendance(TimestampMixin, SoftDeleteMixin, models.Model):
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
-    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='student_attendance')
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='course_attendance')
     total_classes = models.IntegerField(null=True, blank=True)
     attended_classes = models.IntegerField(null=True, blank=True)
     date = models.DateField(null=True, blank=True)
@@ -138,8 +138,8 @@ class Attendance(TimestampMixin, SoftDeleteMixin, models.Model):
 
 
 class Performance(TimestampMixin, SoftDeleteMixin, models.Model):
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
-    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='student_performance')
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='course_performance')
     gpa = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=50, choices=[('Completed', 'Completed'), ('Ongoing', 'Ongoing'), ('Failed', 'Failed')], default='Ongoing')
     semester = models.CharField(max_length=50, null=True, blank=True)
@@ -161,7 +161,7 @@ class Performance(TimestampMixin, SoftDeleteMixin, models.Model):
 
 
 class Internship(TimestampMixin, SoftDeleteMixin, models.Model):
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='student_internships')
     company_name = models.CharField(max_length=255, null=True, blank=True)
     role = models.CharField(max_length=255, null=True, blank=True)
     start_date = models.DateField(null=True, blank=True)
