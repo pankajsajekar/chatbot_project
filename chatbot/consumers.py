@@ -113,51 +113,44 @@ def topper_students_list():
         print(f"Error fetching top students: {e}")
         return {"error": "An error occurred while fetching top students."}
 
+def get_student_session(student_name, session):
+    from students.serializers import AttendanceSerializer, GradeSerializer, InternshipSerializer, PerformanceSerializer
+    student = get_student_records(student_name)
+    # if isinstance(student, dict) and "error" in student:
+    #     return student  # Return error if student not found or an error occurred
+    if session:
+        if session == 'Attendance':
+            attendance_records = student.attendance_set.all()
+            serializer = AttendanceSerializer(internship_records, many=True)
+            data = serializer.data
+            return data
+        elif session == 'Grades':
+            grade_records = student.grade_set.all()
+            serializer = GradeSerializer(internship_records, many=True)
+            data = serializer.data
+            return data
+        elif session == 'Internships':
+            internship_records = student.internship_set.all()
+            serializer = InternshipSerializer(internship_records, many=True)
+            data = serializer.data
+            return data
+        elif session == 'Performance':
+            performance_records = student.performance_set.all()
+            serializer = PerformanceSerializer(internship_records, many=True)
+            data = serializer.data
+            return data
+    else:
+        return {"error": "Invalid session type specified."}
+        
+    
 
 def get_student_details_sync(student_name):
     from students.models import Student, Attendance, Grade, Course, Internship, Performance
+    from students.serializers import StudentSerializer
     try:
         student = get_student_records(student_name)
-        
-        # Fetch attendance data
-        attendance_records = Attendance.objects.filter(student=student)
-        attendance_data = [
-            {
-                "course": record.course.name,
-                "date": record.date.strftime("%Y-%m-%d"),
-                "status": record.status
-            }
-            for record in attendance_records
-        ]
-        
-        # Fetch grade data
-        grade_records = Grade.objects.filter(student=student)
-        grade_data = [
-            {
-                "course": record.course.name,
-                "marks_obtained": record.marks_obtained,
-                "total_marks": record.total_marks,
-                "exam_type": record.exam_type,
-                "semester": record.semester
-            }
-            for record in grade_records
-        ]
-        
-        # Compile all student details
-        student_details = {
-            "name": student.name,
-            "student_id": student.student_id,
-            "department": student.department,
-            "email": student.email,
-            "phone_number": student.phone_number,
-            "gpa": student.gpa,
-            "status": student.status,
-            "enrollment_year": student.enrollment_year,
-            "graduation_year": student.graduation_year,
-            "attendance": attendance_data,
-            "grades": grade_data
-        }
-        
+        serializer = StudentSerializer(student)
+        student_details = serializer.data
         return student_details
     
     except Exception as e:
@@ -240,11 +233,44 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def get_ai_response(self, user_message):
         
         base_prompt = '''
-        You are an agent designed to respond to user queries about student details. When a user asks about a student, such as "What is the attendance of this student?" or "What is the GPA of this student?", 
-        you will interact with the system to retrieve detailed information about the student based on their name. 
-        The data you will fetch includes attendance, GPA, scholarship status, internship details, and more. 
-        Your task is to process the user’s query, retrieve the relevant data from the database, and present the information in a clear and informative manner.
+        You are an agent designed to respond to a variety of user queries. Your primary task is to fetch detailed information about students when asked. When
+        a user queries about a student, such as "What is the attendance of this student?" or "What is the GPA of this student?",
+        you will interact with the system to retrieve relevant student data, which may include:
+        
+        --Attendance: The number of classes attended by the student out of total scheduled classes.
+        --GPA: The student's grade point average.
+        --Scholarship Status: Whether the student is on scholarship and, if so, the details of the scholarship.
+        --Internship Details: Any ongoing or past internships the student has participated in.
+        --Other Academic Information: Any additional academic-related information available, such as grades, performance, and extracurricular activities.
+        
+        When responding to a query about a student, make sure to present the data in a clear and informative manner. Ensure the response is well-structured and directly addresses the query.
+        Additionally, you are equipped to handle General Knowledge (GK) and Aptitude questions. When the user asks such questions, such as "Who is the current President of the United States?"or "What is the square root of 144?", you should provide the correct and up-to-date answers. Your responses should also follow the same structure, being concise and clear.
+        Here are the main categories of queries you will handle:
+        
+        Here are the main categories of queries you will handle:
 
+            *Student Data Queries:*
+            --Attendance
+            --GPA
+            --Scholarship Status
+            --Internship Details*
+            --Other academic-related information
+
+            *General Knowledge (GK) Questions:*
+            --Facts, figures, and events related to history, geography, politics, etc.
+            --Current events and famous personalities
+
+            *Aptitude Questions:*
+            --Mathematical problems, including algebra, geometry, and basic arithmetic
+            --Logical reasoning puzzles
+            *Instructions to Follow:*
+
+            --Student Queries: Retrieve and present the required information based on the student’s name or ID from the database.
+
+            *GK & Aptitude Queries:*
+            --Answer with factual, accurate, and precise information. If the question requires calculation, solve the problem step-by-step.
+        
+        
             Instruction:
 
             The response should be returned in a JSON format with appropriate keys and values containing the student's details.
@@ -397,7 +423,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             # Assuming the response is a JSON string or a dictionary
             if isinstance(response['output'], str):
                 # If the response is a string, parse it as JSON
-                response_data = str(json.loads(response['output']))
+                # response_data = str(json.loads(response['output']))
+                response_data = response['output']
             else:
                 # If it's already a dictionary, use it directly
                 response_data = response['output']
