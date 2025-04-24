@@ -37,6 +37,15 @@ def get_student_records(student_name):
         print(f"Error fetching student details: {e}")
         return {"error": "An error occurred while fetching student details."}
 
+get_student_records_async = sync_to_async(get_student_records)
+
+student_records_tool = Tool(
+    name="get_student_records",
+    func=lambda x: get_student_records_async(x),
+    coroutine=get_student_records_async,
+    description="Fetches a student's record based on their name."
+)
+
 def count_total_records(items: str):
     """
     Count the total number of records in the specified model.
@@ -63,33 +72,58 @@ def count_total_records(items: str):
         print(f"Error counting students: {e}")
         return {"error": "An error occurred while counting students."}
 
-def failed_students():
+count_total_records_async = sync_to_async(count_total_records)
+
+count_records_tool = Tool(
+    name="count_total_records",
+    func=lambda x: count_total_records_async(x),
+    coroutine=count_total_records_async,
+    description="Counts total records for a given model (students, courses, internships, etc.)."
+)
+
+def failed_students(self):
     from students.models import Student
     try:
-        failed_students = Student.objects.filter(is_deleted=False).select_related('student_performance').filter(student_performance__status='Failed')
+        # Use prefetch_related for reverse relationships
+        failed_students = Student.objects.prefetch_related('student_performance__course').filter(
+            is_deleted=False, student_performance__status='Failed'
+        )
         if not failed_students:
             return {"message": "No students have failed."}
-        data = [
-            {
-                "name": student.name,
-                "student_id": student.student_id,
-                "department": student.department,
-                "email": student.email,
-                "phone_number": student.phone_number,
-                "gpa": student.gpa,
-                "status": student.status,
-                "enrollment_year": student.enrollment_year,
-                "graduation_year": student.graduation_year,
-            }
-            for student in failed_students
-        ]
+        
+        data = []
+        # Iterate and collect relevant information
+        for student in failed_students:
+            for performance in student.student_performance.all():  # Access related performances
+                data.append({
+                    "name": student.name,
+                    "student_id": student.student_id,
+                    "department": student.department,
+                    "email": student.email,
+                    "phone_number": student.phone_number,
+                    "gpa": student.gpa,
+                    "status": student.status,
+                    "enrollment_year": student.enrollment_year,
+                    "graduation_year": student.graduation_year,
+                    "course": performance.course.name,  # Include course name
+                    "performance_status": performance.status,
+                })
+        
         return data
     except Exception as e:
         print(f"Error fetching failed students: {e}")
         return {"error": "An error occurred while fetching failed students."}
-    
 
-def topper_students_list():
+failed_students_async = sync_to_async(failed_students)
+
+failed_students_tool = Tool(
+    name="failed_students",
+    func=lambda: failed_students_async(),
+    coroutine=failed_students_async,
+    description="Fetches a list of failed students."
+)    
+
+def topper_students_list(self):
     from students.models import Student
     try:
         top_students = Student.objects.filter(is_deleted=False).order_by('-gpa')[:10]
@@ -113,6 +147,19 @@ def topper_students_list():
         print(f"Error fetching top students: {e}")
         return {"error": "An error occurred while fetching top students."}
 
+topper_students_list_async = sync_to_async(topper_students_list)
+
+topper_students_tool = Tool(
+    name="topper_students_list",
+    func=lambda: topper_students_list_async(),
+    coroutine=topper_students_list_async,
+    description="Fetches a list of the top 10 students based on GPA."
+)
+
+class StudentSessionInput(BaseModel):
+    student_name: str = Field(description="Name of the student")
+    session: str = Field(description="Session type (Attendance, Grades, Internships, Performance)")
+
 def get_student_session(student_name, session):
     from students.serializers import AttendanceSerializer, GradeSerializer, InternshipSerializer, PerformanceSerializer
     student = get_student_records(student_name)
@@ -120,29 +167,43 @@ def get_student_session(student_name, session):
     #     return student  # Return error if student not found or an error occurred
     if session:
         if session == 'Attendance':
-            attendance_records = student.attendance_set.all()
-            serializer = AttendanceSerializer(internship_records, many=True)
+            attendance_records = student.student_attendance.all()
+            serializer = AttendanceSerializer(attendance_records, many=True)
             data = serializer.data
             return data
         elif session == 'Grades':
-            grade_records = student.grade_set.all()
-            serializer = GradeSerializer(internship_records, many=True)
+            grade_records = student.student_grades.all()
+            serializer = GradeSerializer(grade_records, many=True)
             data = serializer.data
             return data
         elif session == 'Internships':
-            internship_records = student.internship_set.all()
+            internship_records = student.student_internships.all()
             serializer = InternshipSerializer(internship_records, many=True)
             data = serializer.data
             return data
         elif session == 'Performance':
-            performance_records = student.performance_set.all()
-            serializer = PerformanceSerializer(internship_records, many=True)
+            performance_records = student.student_performance.all()
+            serializer = PerformanceSerializer(performance_records, many=True)
             data = serializer.data
             return data
     else:
         return {"error": "Invalid session type specified."}
         
-    
+get_student_session_async = sync_to_async(get_student_session)
+
+# student_session_tool = Tool(
+#     name="get_student_session",
+#     func=lambda x, y: get_student_session_async(x, y),
+#     coroutine=get_student_session_async,
+#     description="Fetches a student's session data (Attendance, Grades, Internships, Performance) based on session type."
+# )
+
+student_session_tool = Tool(
+    name="get_student_session",
+    func=lambda x: get_student_session_async(**json.loads(x)),
+    coroutine=lambda x: get_student_session_async(**json.loads(x)),
+    description="Fetches a student's session data (Attendance, Grades, Internships, Performance) based on session type. Input should be JSON format like: {\"student_name\": \"John Doe\", \"session\": \"Attendance\"}"
+)
 
 def get_student_details_sync(student_name):
     from students.models import Student, Attendance, Grade, Course, Internship, Performance
@@ -159,13 +220,6 @@ def get_student_details_sync(student_name):
 
 get_student_details_async = sync_to_async(get_student_details_sync)
 
-# student_details_tool = Tool(
-#     name="get_student_details",
-#     func=lambda x: asyncio.run(get_student_details(x)),
-#     coroutine=get_student_details,
-#     description="Fetches details of a student based on their name.",
-# )
-
 student_details_tool = Tool(
     name="get_student_details",
     func=lambda x: get_student_details_async(x),
@@ -173,17 +227,7 @@ student_details_tool = Tool(
     description="Fetches details of a student based on their name.",
 )
 
-# class StudentInfo(BaseModel):
-#     student_name : str = Field(description="Name of the student to fetch details for")
 
-# student_info_tool = StructuredTool.from_function(
-#     coroutine=get_student_details,
-#     name="get_student_details",
-#     description="Fetches details of a student based on their name.",
-#     args_schema=StudentInfo,    
-#     return_direct=True,
-    
-# )
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -233,150 +277,123 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def get_ai_response(self, user_message):
         
         base_prompt = '''
-        You are an agent designed to respond to a variety of user queries. Your primary task is to fetch detailed information about students when asked. When
-        a user queries about a student, such as "What is the attendance of this student?" or "What is the GPA of this student?",
-        you will interact with the system to retrieve relevant student data, which may include:
-        
+        You are an agent designed to respond to a variety of user queries. Your primary task is to fetch detailed information about students, courses, and academic records when asked. When a user queries about a student or academic data, such as "What is the attendance of this student?" or "What is the GPA of this student?", you will interact with the system to retrieve relevant data, which may include:
+
+        *Student Data Queries:*
         --Attendance: The number of classes attended by the student out of total scheduled classes.
         --GPA: The student's grade point average.
         --Scholarship Status: Whether the student is on scholarship and, if so, the details of the scholarship.
         --Internship Details: Any ongoing or past internships the student has participated in.
         --Other Academic Information: Any additional academic-related information available, such as grades, performance, and extracurricular activities.
-        
-        When responding to a query about a student, make sure to present the data in a clear and informative manner. Ensure the response is well-structured and directly addresses the query.
-        Additionally, you are equipped to handle General Knowledge (GK) and Aptitude questions. When the user asks such questions, such as "Who is the current President of the United States?"or "What is the square root of 144?", you should provide the correct and up-to-date answers. Your responses should also follow the same structure, being concise and clear.
-        Here are the main categories of queries you will handle:
-        
-        Here are the main categories of queries you will handle:
 
-            *Student Data Queries:*
-            --Attendance
-            --GPA
-            --Scholarship Status
-            --Internship Details*
-            --Other academic-related information
+        *General Knowledge (GK) Questions:*
+        --Facts, figures, and events related to history, geography, politics, etc.
+        --Current events and famous personalities.
 
-            *General Knowledge (GK) Questions:*
-            --Facts, figures, and events related to history, geography, politics, etc.
-            --Current events and famous personalities
+        *Aptitude Questions:*
+        --Mathematical problems, including algebra, geometry, and basic arithmetic.
+        --Logical reasoning puzzles.
 
-            *Aptitude Questions:*
-            --Mathematical problems, including algebra, geometry, and basic arithmetic
-            --Logical reasoning puzzles
-            *Instructions to Follow:*
+        You are also capable of handling queries regarding the overall records and counts of various entities in the system:
 
-            --Student Queries: Retrieve and present the required information based on the student’s name or ID from the database.
+        *General Queries:*
+        - Total Students: The total number of students in the system.
+        - Total Courses: The total number of courses available.
+        - Total Grades: The number of grades recorded in the system.
+        - Total Attendance Records: The number of attendance records available.
+        - Total Performance Records: The number of performance records available.
+        - Active Internships: The number of ongoing internships.
 
-            *GK & Aptitude Queries:*
-            --Answer with factual, accurate, and precise information. If the question requires calculation, solve the problem step-by-step.
-        
-        
-            Instruction:
+        How You Should Process the Query:
+        1. **Student Queries**: Retrieve and present the required information based on the student’s name or ID from the database.
+            - Use the **get_student_details_tool** for full student details.
+            - Use the **student_session_tool** to fetch session data like attendance, grades, internships, and performance.
+            - Use the **failed_students_tool** and **topper_students_tool** for specific data on students who have failed or the top students by GPA.
+            
+        2. **General Queries**: For queries related to total numbers (like total students or courses), fetch the appropriate count from the system:
+            - **count_records_tool** for retrieving the total number of records (e.g., students, courses, grades, etc.).
 
-            The response should be returned in a JSON format with appropriate keys and values containing the student's details.
+        3. **Format the Response**: Return the requested information in a structured text format. If multiple details are requested in one query (e.g., both attendance and GPA), provide all relevant information in a single, clear response.
 
-            The JSON should include the following keys:
+        4. **Handle Edge Cases**: If the student cannot be found or if data is missing (e.g., missing GPA or attendance), the agent should mention that the data is unavailable or ask for clarification.
 
-            student_name (string): The full name of the student.
+        Examples of User Queries:
 
-            attendance (string): The student's attendance details (if available).
+        1. "What is the attendance of Alexis Peterson?"
+        2. "What is the GPA of John Doe?"
+        3. "Is Jane Smith on scholarship?"
+        4. "What is the internship status of Emily Brown?"
+        5. "How many students are there in total?"
+        6. "How many courses are available?"
+        7. "How many active internships are there?"
+        8. "What is the total number of performance records?"
+        9. "Show me the grades for all students."
 
-            gpa (string): The student's GPA (if available).
 
-            scholarship_status (string): The student's scholarship status (if available).
+        First you need to fetch all the details and store them in a JSON format.
+        Example Responses that you need to store in JSON: 
 
-            internship_status (string): The student's internship status (if available).
-
-            message (string): A message indicating whether the data is available or incomplete.
-
-            Examples of User Queries:
-
-            "What is the attendance of Alexis Peterson?"
-
-            "What is the GPA of John Doe?"
-
-            "Is Jane Smith on scholarship?"
-
-            "What is the internship status of Emily Brown?"
-
-            How You Should Process the Query:
-
-            Parse the Student’s Name – Identify and extract the student’s name from the user’s query.
-
-            Utilize the get_student_details tool to Query the Database – Use the student’s name to retrieve details from the relevant models:
-
-            Attendance Model for attendance queries.
-
-            Grade or Performance Models for GPA queries.
-
-            Internship Model for internship-related queries.
-
-            Scholarship and Financial Aid Information from the Student model.
-
-            Format the Response – Return the requested information in a structured JSON format. If multiple details are requested in one query (e.g., both attendance and GPA), provide all relevant information in a single, clear response.
-
-            Handle Edge Cases – If the student cannot be found or if there is incomplete data (e.g., missing GPA or attendance), the agent should mention that the data is unavailable or ask for clarification.
-
-            Example Responses in JSON:
-
-            Query: "What is the attendance of Alexis Peterson?"
-
-            {{
+        Query: "What is the attendance of Alexis Peterson?"
+        {{
             "student_name": "Alexis Peterson",
             "attendance": "80% attendance in the 'Mathematics' course this semester",
             "gpa": null,
             "scholarship_status": null,
             "internship_status": null,
             "message": "Data for GPA, scholarship status, and internship status is incomplete."
-            }}
-            Query: "What is the GPA of John Doe?"
+        }}
 
-            {{
+        Query: "What is the GPA of John Doe?"
+        {{
             "student_name": "John Doe",
             "attendance": null,
             "gpa": "3.75 for the current semester",
             "scholarship_status": null,
             "internship_status": null,
             "message": "Data for attendance, scholarship status, and internship status is incomplete."
-            }}
-            Query: "Is Jane Smith on scholarship?"
+        }}
 
-            {{
-            "student_name": "Jane Smith",
-            "attendance": null,
-            "gpa": null,
-            "scholarship_status": "Not on any scholarship",
-            "internship_status": null,
-            "message": "Data for attendance, GPA, and internship status is incomplete."
-            }}
-            Query: "What is the internship status of Emily Brown?"
+        Query: "How many students are there in total?"
+        {{
+            "total_students": 11
+        }}
 
-            {{
-            "student_name": "Emily Brown",
-            "attendance": null,
-            "gpa": null,
-            "scholarship_status": null,
-            "internship_status": "Currently working as a Software Intern at ABC Tech, from June 2024 to August 2024.",
-            "message": "Data for attendance, GPA, and scholarship status is incomplete."
-            }}
-            Additional Guidelines:
+        Query: "How many courses are available?"
+        {{
+            "total_courses": 6
+        }}
 
-            Tool Usage: Always use the get_student_details tool to fetch student data. The tool should be able to handle queries for attendance, GPA, scholarship status, internship details, and other relevant information. The tool can only be queried using student name.
+        Query: "How many active internships are there?"
+        {{
+            "active_internships": 8
+        }}
 
-            Handling Multiple Students with Similar Names: If the agent detects multiple students with the same name, ask for clarification (e.g., "There are multiple students named 'John Doe.' Could you specify the department or year?").
+        Query: "What is the total number of performance records?"
+        {{
+            "total_performance_records": 51
+        }}
 
-            Error Handling: If the agent is unable to find the student or if data is missing (e.g., missing attendance or GPA), the response should notify the user of the missing information, e.g., "Data for this student is incomplete."
+        Query: "Show me the grades for all students"
+        {{
+            "total_grades": 51
+        }}
 
-            Date-based Queries: If the query refers to attendance or performance data over time (e.g., "What was the attendance last semester?"), ensure that the query filters data by relevant dates and periods.
+        Once you have the JSON with you, convert it into a proper, precise, concise, readable, easy to undestand formatted text string and return it.
 
-            Providing Additional Context: In some cases, if additional relevant details are available (e.g., academic status or internship description), the agent should provide these to enrich the response.
+        Additional Guidelines:
+        - **Tool Usage**: Always use the appropriate tool to fetch student data (e.g., `get_student_details_tool`, `get_student_session_tool`, etc.). The tool should be able to handle queries for attendance, GPA, internship details, and other relevant information.
+        - **Handling Multiple Students with Similar Names**: If the agent detects multiple students with the same name, ask for clarification (e.g., "There are multiple students named 'John Doe.' Could you specify the department or year?").
+        - **Error Handling**: If the agent is unable to find the student or if data is missing (e.g., missing attendance or GPA), the response should notify the user of the missing information, e.g., "Data for this student is incomplete."
+        - **Date-based Queries**: If the query refers to attendance or performance data over time (e.g., "What was the attendance last semester?"), ensure that the query filters data by relevant dates and periods.
+        - **Providing Additional Context**: In some cases, if additional relevant details are available (e.g., academic status or internship description), the agent should provide these to enrich the response.
+        - For using get_student_session_tool, first determine the session based on the user query context. There are only 4 session: Attendance, Grades, Internships, Performance. Once you have the session variable, you can call the get_student_session_tool with the student name and session. For example, if the user asks for "What is the attendance of Pankaj?", you will set session = Attendance and call get_student_session_tool with first variable x = Pankaj, and second variable y =  Attendance. The tool will return the attendance records of Pankaj.
 
-            Your role is to provide accurate, concise, and clear responses based on the available student data, ensuring the responses are comprehensive and formatted correctly in JSON.
+        Your role is to provide accurate, concise, and clear responses based on the available student data, ensuring the responses are comprehensive and formatted correctly as text. Format the data in such a way that it should have bullet points or the data should be structured in the form of a table if required.
         '''
         
         chat_history = []
         
-        tools = [student_details_tool]    
+        tools = [student_details_tool, student_records_tool, count_records_tool, failed_students_tool, topper_students_tool, student_session_tool]    
     
         llm_with_tools = llm.bind_tools(tools)
         
@@ -407,47 +424,37 @@ class ChatConsumer(AsyncWebsocketConsumer):
         
         agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
         
-        response = await agent_executor.ainvoke({"input": user_message, "chat_history": chat_history})
-        
-        chat_history.extend(
-            [
-                HumanMessage(content=user_message),
-                AIMessage(content=response["output"]),
-            ]
-        )
-        
-        print(f'the raw response obtained: {response['output']}')
-
-        # Parse the response if it's in JSON format
         try:
-            # Assuming the response is a JSON string or a dictionary
-            if isinstance(response['output'], str):
-                # If the response is a string, parse it as JSON
-                # response_data = str(json.loads(response['output']))
-                response_data = response['output']
-            else:
-                # If it's already a dictionary, use it directly
-                response_data = response['output']
-
-            # Check if the response contains the expected keys and format it properly
-            # if isinstance(response_data, dict) and "student_name" in response_data:
-            #     # You can modify the structure of the response here, if needed
-            #     parsed_response = {
-            #         "student_name": response_data.get("student_name", ""),
-            #         "attendance": response_data.get("attendance", "Data unavailable"),
-            #         "gpa": response_data.get("gpa", "Data unavailable"),
-            #         "scholarship_status": response_data.get("scholarship_status", "Data unavailable"),
-            #         "internship_status": response_data.get("internship_status", "Data unavailable"),
-            #         "message": response_data.get("message", "Data is incomplete or unavailable")
-            #     }
-            #     # Print the parsed response
-            #     print(f'Parsed JSON response: {parsed_response}')
-
-            #     # Return the parsed JSON response
-            #     return parsed_response
+            response = await agent_executor.ainvoke({"input": user_message, "chat_history": chat_history})
             
-            return response_data
+            chat_history.extend(
+                [
+                    HumanMessage(content=user_message),
+                    AIMessage(content=response["output"]),
+                ]
+            )
+            
+            print(f'the raw response obtained: {response['output']}')
+
+            # # Parse the response if it's in JSON format
+            # try:
+            #     # Assuming the response is a JSON string or a dictionary
+            #     if isinstance(response['output'], str):
+            #         # If the response is a string, parse it as JSON
+            #         print(f'Parsing response: {response["output"]}')
+            #         response_data = json.loads(response['output'])
+            #         if 'answer' in response_data:
+            #             response_data = response_data['answer']
+            #         else:
+            #             response_data = str(response_data)
+            #         # response_data = response['output']            
+                
+            #     return response_data
+            
+            return response['output']
 
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
             return {"error": "Invalid response format."}
+        
+
