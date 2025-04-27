@@ -434,7 +434,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 ]
             )
             
-            print(f'the raw response obtained: {response['output']}')
+            # print(f'the raw response obtained: {response['output']}')
 
             # # Parse the response if it's in JSON format
             # try:

@@ -7,7 +7,7 @@ from rest_framework.decorators import api_view
 from rest_framework import generics
 from .models import Student, Course, Grade, Attendance, Performance, Internship
 from .serializers import StudentSerializer, CourseSerializer, GradeSerializer, AttendanceSerializer, PerformanceSerializer, InternshipSerializer
-
+from django.db.models import Q
 
 # API view for Dashboard
 class DashboardView(APIView):
@@ -27,6 +27,20 @@ class DashboardView(APIView):
 class StudentListCreateView(generics.ListCreateAPIView):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        search_query = self.request.query_params.get('search', None)
+        print(search_query, "search")
+        if search_query:
+            queryset = queryset.filter(
+                Q(name__icontains=search_query) |
+                Q(email__icontains=search_query) |
+                Q(address__icontains=search_query) |
+                Q(phone_number__icontains=search_query) |
+                Q(department__icontains=search_query)
+            )
+        return queryset
 
 class StudentDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Student.objects.all()
