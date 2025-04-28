@@ -25,6 +25,27 @@ openai.api_key = settings.OPENAI_API_KEY
 
 llm = ChatOpenAI(model="gpt-4.1", temperature=0.3, api_key=settings.OPENAI_API_KEY)
 
+def get_list_students(self):
+    from students.models import Student
+    from students.serializers import StudentSerializer
+    try:
+        students = Student.objects.filter(is_deleted=False)
+        if not students:
+            return {"message": "No students found."}
+        serializers = StudentSerializer(students, many=True)
+        return serializers.data
+    except Exception as e:
+        print(f"Error fetching students: {e}")
+        return {"error": "An error occurred while fetching students."}
+
+get_students_list_async = sync_to_async(get_list_students)
+
+student_records_tool = Tool(
+    name="get_students_list",
+    func=lambda x: get_students_list_async(x),
+    coroutine=get_students_list_async,
+    description="Fetches a list of all students who are not marked as deleted."
+)
 
 def get_student_records(student_name):
     from students.models import Student
@@ -303,15 +324,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
         - Total Attendance Records: The number of attendance records available.
         - Total Performance Records: The number of performance records available.
         - Active Internships: The number of ongoing internships.
+        - List of Students: Fetch the list of all students who are not marked as deleted.
 
         How You Should Process the Query:
         1. **Student Queries**: Retrieve and present the required information based on the student’s name or ID from the database.
             - Use the **get_student_details_tool** for full student details.
             - Use the **student_session_tool** to fetch session data like attendance, grades, internships, and performance.
             - Use the **failed_students_tool** and **topper_students_tool** for specific data on students who have failed or the top students by GPA.
-            
         2. **General Queries**: For queries related to total numbers (like total students or courses), fetch the appropriate count from the system:
             - **count_records_tool** for retrieving the total number of records (e.g., students, courses, grades, etc.).
+            - Use the **get_students_list** tool to fetch the list of all students.
 
         3. **Format the Response**: Return the requested information in a structured text format. If multiple details are requested in one query (e.g., both attendance and GPA), provide all relevant information in a single, clear response.
 
@@ -328,6 +350,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         7. "How many active internships are there?"
         8. "What is the total number of performance records?"
         9. "Show me the grades for all students."
+        10. "List all students in the system."
 
 
         First you need to fetch all the details and store them in a JSON format.
@@ -358,27 +381,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
             "total_students": 11
         }}
 
-        Query: "How many courses are available?"
+        Query: "List all students in the system."
         {{
-            "total_courses": 6
+            "students": [
+            {"name": "John Doe", "student_id": "12345", "department": "Computer Science"},
+            {"name": "Jane Smith", "student_id": "67890", "department": "Mathematics"},
+            ...
+            ]
         }}
 
-        Query: "How many active internships are there?"
-        {{
-            "active_internships": 8
-        }}
-
-        Query: "What is the total number of performance records?"
-        {{
-            "total_performance_records": 51
-        }}
-
-        Query: "Show me the grades for all students"
-        {{
-            "total_grades": 51
-        }}
-
-        Once you have the JSON with you, convert it into a proper, precise, concise, readable, easy to undestand formatted text string and return it.
+        Once you have the JSON with you, convert it into a proper, precise, concise, readable, easy-to-understand formatted text string and return it.
 
         Additional Guidelines:
         - **Tool Usage**: Always use the appropriate tool to fetch student data (e.g., `get_student_details_tool`, `get_student_session_tool`, etc.). The tool should be able to handle queries for attendance, GPA, internship details, and other relevant information.
@@ -386,7 +398,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         - **Error Handling**: If the agent is unable to find the student or if data is missing (e.g., missing attendance or GPA), the response should notify the user of the missing information, e.g., "Data for this student is incomplete."
         - **Date-based Queries**: If the query refers to attendance or performance data over time (e.g., "What was the attendance last semester?"), ensure that the query filters data by relevant dates and periods.
         - **Providing Additional Context**: In some cases, if additional relevant details are available (e.g., academic status or internship description), the agent should provide these to enrich the response.
-        - For using get_student_session_tool, first determine the session based on the user query context. There are only 4 session: Attendance, Grades, Internships, Performance. Once you have the session variable, you can call the get_student_session_tool with the student name and session. For example, if the user asks for "What is the attendance of Pankaj?", you will set session = Attendance and call get_student_session_tool with first variable x = Pankaj, and second variable y =  Attendance. The tool will return the attendance records of Pankaj.
+        - For using get_student_session_tool, first determine the session based on the user query context. There are only 4 session types: Attendance, Grades, Internships, Performance. Once you have the session variable, you can call the get_student_session_tool with the student name and session. For example, if the user asks for "What is the attendance of Pankaj?", you will set session = Attendance and call get_student_session_tool with first variable x = Pankaj, and second variable y = Attendance. The tool will return the attendance records of Pankaj.
 
         Your role is to provide accurate, concise, and clear responses based on the available student data, ensuring the responses are comprehensive and formatted correctly as text. Format the data in such a way that it should have bullet points or the data should be structured in the form of a table if required.
         '''
