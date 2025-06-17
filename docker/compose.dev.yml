@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: dev-db
+    ports:
+      - "5433:5432"  # host:container
+    environment:
+      POSTGRES_DB: mydb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    env_file:
+      - .env.dev 
+
+  redis:
+    image: redis:7-alpine
+    container_name: dev-redis
+    ports:
+      - "6380:6379"
+    command: redis-server --requirepass 1234
+    restart: always
+
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    container_name: django-dev
+    command: >
+      sh -c "
+        python manage.py migrate &&
+        python manage.py insert_fake_data &&
+        python manage.py runserver 0.0.0.0:8001
+      "
+    volumes:
+      - ../:/app
+    ports:
+      - "8001:8001"  # host:container
+    env_file:
+      - .env.dev
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  postgres_data:
